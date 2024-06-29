@@ -9,12 +9,13 @@ from catprinter import logger
 from catprinter.cmds import PRINT_WIDTH, cmds_print_img
 from catprinter.ble import run_ble
 from catprinter.img import read_img, show_preview
+from catprinter.txt import text_to_image
 
 
 def parse_args():
     args = argparse.ArgumentParser(
         description='prints an image on your cat thermal printer')
-    args.add_argument('filename', type=str)
+    args.add_argument('-f', '--filename', type=str)
     args.add_argument('-l', '--log-level', type=str,
                       choices=['debug', 'info', 'warn', 'error'], default='info')
     args.add_argument('-b', '--img-binarization-algo', type=str,
@@ -35,6 +36,7 @@ def parse_args():
                           'If omitted, the the script will try to auto discover '
                           'the printer based on its advertised BLE services.'
                       ))
+    args.add_argument('-x', '--text', type=str, default='', help='Print text instead of an image.')
     args.add_argument('-t', '--darker', action='store_true',
                       help="Print the image in text mode. This leads to more contrast, \
                           but slower speed.")
@@ -54,17 +56,27 @@ def main():
     log_level = getattr(logging, args.log_level.upper())
     configure_logger(log_level)
 
-    filename = args.filename
-    if not os.path.exists(filename):
-        logger.info('🛑 File not found. Exiting.')
+    if not args.filename and not args.text:
+        logger.error('🛑 Please provide a filename or text to print.')
         return
 
+    if args.filename:
+        if not os.path.exists(args.filename):
+            logger.info('🛑 File not found. Exiting.')
+            return
+
     try:
-        bin_img = read_img(
-            args.filename,
-            PRINT_WIDTH,
-            args.img_binarization_algo,
-        )
+        if args.text:
+            # generate an image from the text using the default font and PILLOW
+            bin_img = text_to_image(args.text, PRINT_WIDTH)
+
+
+        else:
+            bin_img = read_img(
+                args.filename,
+                PRINT_WIDTH,
+                args.img_binarization_algo,
+            )
         if args.show_preview:
             show_preview(bin_img)
     except RuntimeError as e:
