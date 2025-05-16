@@ -20,7 +20,7 @@ def parse_args():
                       choices=['debug', 'info', 'warn', 'error'], default='info')
     args.add_argument('-b', '--img-binarization-algo', type=str,
                       choices=['mean-threshold',
-                               'floyd-steinberg', 'halftone', 'none'],
+                               'floyd-steinberg', 'atkinson', 'halftone', 'none'],
                       default='floyd-steinberg',
                       help=f'Which image binarization algorithm to use. If \'none\'  \
                              is used, no binarization will be used. In this case the \
@@ -36,10 +36,10 @@ def parse_args():
                           'If omitted, the the script will try to auto discover '
                           'the printer based on its advertised BLE services.'
                       ))
+    args.add_argument('-e', '--energy', type=lambda h: int(h.removeprefix("0x"), 16),
+                      help="Thermal energy. Between 0x0000 (light) and 0xffff (darker, default).",
+                      default="0xffff")
     args.add_argument('-x', '--text', type=str, default='', help='Print text instead of an image.')
-    args.add_argument('-t', '--darker', action='store_true',
-                      help="Print the image in text mode. This leads to more contrast, \
-                          but slower speed.")
     return args.parse_args()
 
 
@@ -84,7 +84,7 @@ def main():
         return
 
     logger.info(f'✅ Read image: {bin_img.shape} (h, w) pixels')
-    data = cmds_print_img(bin_img, dark_mode=args.darker)
+    data = cmds_print_img(bin_img, energy=args.energy)
     logger.info(f'✅ Generated BLE commands: {len(data)} bytes')
 
     # Try to autodiscover a printer if --device is not specified.
