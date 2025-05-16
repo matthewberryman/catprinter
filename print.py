@@ -40,6 +40,7 @@ def parse_args():
                       help="Thermal energy. Between 0x0000 (light) and 0xffff (darker, default).",
                       default="0xffff")
     args.add_argument('-x', '--text', type=str, default='', help='Print text instead of an image.')
+    args.add_argument('-q', '--queue-url', type=str, default='', help='SQS queue URL to fetch messages from.')
     return args.parse_args()
 
 
@@ -56,8 +57,8 @@ def main():
     log_level = getattr(logging, args.log_level.upper())
     configure_logger(log_level)
 
-    if not args.filename and not args.text:
-        logger.error('🛑 Please provide a filename or text to print.')
+    if not args.filename and not args.text and not args.queue_url:
+        logger.error('🛑 Please provide a filename, text or SQS queue URL to print.')
         return
 
     if args.filename:
@@ -66,7 +67,23 @@ def main():
             return
 
     try:
-        if args.text:
+        if args.queue_url:
+            # Fetch messages from SQS and convert to image
+            from catprinter.sqs import fetch_and_print_from_sqs
+            bin_img = fetch_and_print_from_sqs(args.queue_url)
+            if bin_img is None:
+                logger.error('🛑 No messages in the queue.')
+                return
+
+        elif args.filename:
+            # read the image from the file
+            bin_img = read_img(
+                args.filename,
+                PRINT_WIDTH,
+                args.img_binarization_algo,
+            )
+
+        elif args.text:
             # generate an image from the text using the default font and PILLOW
             bin_img = text_to_image(args.text, PRINT_WIDTH)
 
